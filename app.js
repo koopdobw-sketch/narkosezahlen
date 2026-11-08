@@ -333,7 +333,6 @@ const UEBERSICHT_SPALTEN = [
   ['Thorax', n => n.filter(x => x.kategorien.includes('thorax')).length],
   ['Intrakr.', n => n.filter(x => x.kategorien.includes('intrakraniell')).length],
   ['Geburtsh.', n => n.filter(x => x.kategorien.includes('geburtshilfe')).length],
-  ['Gefäß', n => n.filter(x => x.kategorien.includes('gefaess')).length],
   ['Sonst.', n => n.filter(x => x.kategorien.includes('sonstige')).length],
 ];
 

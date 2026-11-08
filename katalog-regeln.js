@@ -58,7 +58,7 @@ export const KATEGORIE_REGELN = {
     'carotis', 'fem pop', 'fempop', '=pop', 'varize', 'venefit', 'venos', 'bypass', 'crossover',
     'thrombendarter', 'aneurysma', 'stent', 'gefa',
   ],
-  geburtshilfe: ['sectio', 'kaiserschn', 'geburt', 'plazent', 'placent'],
+  geburtshilfe: ['=sectio', 'kaiserschn', 'geburt', 'plazent', 'placent'],
   reanimation: ['reanim', '=reani'],
   sonstige: [
     // Gliedmaßen, Wirbelsäule, Orthopädie

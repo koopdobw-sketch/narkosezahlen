@@ -19,7 +19,6 @@ const VERFAHREN = [
   ['Reanimation', /\breanimation\w*|\breani\b/i],
   ['TIVA', /\btiva\b/i],
   ['Rotem', /\brotem\b/i],
-  ['ZVK+Art', /\bzvk\b.*\barteri\w*|\barteri\w*.*\bzvk\b|\bzvk art\b/i],
   ['ZVK', /\bzvk\b/i],
   ['Art', /\bart\b|\barteri\w*|\barterie\b/i],
   ['vITN', /\bvitn\b|video\s*-?\s*itn|videoitn|video.?intub/i],

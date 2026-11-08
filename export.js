@@ -7,11 +7,12 @@ export const SPALTEN_NARKOSEZAHLEN = ['Datum', 'ASA', 'Geschlecht', 'Eingriffsar
   'Kinder', 'Geburtshilfe', 'Reanimation'];
 
 const ATEMWEG = { vITN: 'vITN', kITN: 'kITN', nITN: 'nITN', LAMA: 'LAMA', Fieberoptik: 'Fieberoptik', Analgosedierung: 'Analgo.' };
-const PUNKTION = { Art: 'Art', ZVK: 'ZVK', 'ZVK+Art': 'ZVK Art' };
 const REGIONAL = { SPA: 'SPA', PDK: 'PDK', ISB: 'ISB', Supraklavikulaer: 'Sup-Clav', Infraklavikulaer: 'Infra-Clav',
   Axillaer: 'Axplex', Femoral: 'Femoral', Ischiadikus: 'Isch', 'Anderer Block': 'Anderer' };
 
 const eins = (b) => (b ? 1 : '');
+// Punktion: ZVK, Arterie oder beides (wie in der Excel: „ZVK Art“).
+const punktion = (verf) => { const z = verf.includes('ZVK'), a = verf.includes('Art'); return z && a ? 'ZVK Art' : z ? 'ZVK' : a ? 'Art' : ''; };
 const intubiert = (n) => (n.verfahren || []).some(v => ['vITN', 'kITN', 'nITN'].includes(v));
 const zahlOderText = (s) => (/^\d+$/.test(String(s || '').trim()) ? Number(s) : (s || ''));
 
@@ -32,7 +33,7 @@ export function narkoseZeile(n) {
     eins(kat.includes('thorax')),
     eins(kat.includes('intrakraniell')),
     eins(kat.includes('abdomen')),
-    abbildung(PUNKTION),
+    punktion(verf),
     abbildung(REGIONAL),
     eins(n.ambulant),
     eins((n.verfahren || []).includes('Rotem')),

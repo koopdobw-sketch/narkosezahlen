@@ -38,7 +38,7 @@ export function narkoseZeile(n) {
     eins((n.verfahren || []).includes('Rotem')),
     eins(n.kind),
     eins(kat.includes('geburtshilfe')),
-    eins(kat.includes('reanimation')),
+    eins(kat.includes('reanimation') || verf.includes('Reanimation')),
   ];
 }
 

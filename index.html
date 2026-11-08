@@ -85,6 +85,11 @@
   .legende { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; margin-top: 6px; }
   .leg i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 4px; vertical-align: middle; }
   .text { white-space: pre-wrap; }
+  .tabelle-scroll { overflow-x: auto; margin: 8px -16px; padding: 0 16px; }
+  table.uebersicht { font-size: 13px; width: auto; min-width: 100%; }
+  table.uebersicht th, table.uebersicht td { padding: 6px 6px; white-space: nowrap; }
+  table.uebersicht tr.summe th, table.uebersicht tr.summe td { font-weight: 600; }
+  .anmerkung { font-style: italic; }
 </style>
 </head>
 <body>
@@ -125,15 +130,17 @@
   </section>
 
   <section id="auswertung" hidden>
-    <h2>Monatsübersicht</h2>
-    <label class="feld"><span>Monat</span><input type="month" id="auswertung-monat"></label>
-    <p id="monatstext" class="text"></p>
-
-    <h3>Verteilung über die Monate</h3>
+    <h2>Meine Übersicht</h2>
+    <p class="muted">Nur für dich, wird nicht exportiert.</p>
     <label class="feld"><span>Jahr</span><input type="number" id="diagramm-jahr" min="2020" max="2100"></label>
+    <div class="tabelle-scroll" id="monats-tabelle"></div>
+
+    <label class="feld"><span>Monat im Text</span><input type="month" id="auswertung-monat"></label>
+    <p id="monatstext" class="text"></p>
     <div id="diagramm"></div>
 
-    <h2>Quartalsmeldung</h2>
+    <h2 style="margin-top:32px">Quartalsmeldung</h2>
+    <p class="muted">Zum Melden. Enthält nur die Felder der Vorlage.</p>
     <label class="feld"><span>Quartal</span><select id="quartal"></select></label>
     <table><tbody id="quartal-tabelle"></tbody></table>
 

@@ -11,7 +11,7 @@ const VERF_LABEL = {
   vITN: 'vITN', kITN: 'kITN', nITN: 'nITN', LAMA: 'LAMA', Fieberoptik: 'Fieberoptik', Analgosedierung: 'Analgosedierung',
   Art: 'Art', ZVK: 'ZVK', 'ZVK+Art': 'ZVK + Art', PDK: 'PDK', SPA: 'SPA', ISB: 'ISB', Supraklavikulaer: 'Supraklavikulär',
   Infraklavikulaer: 'Infraklavikulär', Axillaer: 'Axillär', Femoral: 'Femoral', Ischiadikus: 'Ischiadikus', 'Anderer Block': 'Anderer Block',
-  TIVA: 'TIVA', Rotem: 'Rotem',
+  TIVA: 'TIVA', Rotem: 'Rotem', Reanimation: 'Reanimation',
 };
 const INTUBATION = ['vITN', 'kITN', 'nITN'];
 const PERIPHER = ['ISB', 'Supraklavikulaer', 'Infraklavikulaer', 'Axillaer', 'Femoral', 'Ischiadikus', 'Anderer Block'];
@@ -54,6 +54,8 @@ const kategorienLabel = (ks) => ks.length ? ks.map(k => KAT_LABEL[k]).join(', ')
 const ist = (n, arr) => (n.verfahren || []).some(v => arr.includes(v));
 // First Pass Success: Standard ist „erfolgreich“. Nur ein ausdrücklicher Fehlversuch (fps === false) zählt dagegen.
 const intubiert = (n) => ist(n, INTUBATION);
+const reanimation = (n) => n.kategorien.includes('reanimation') || ist(n, ['Reanimation']);
+const asaHoch = (n) => Number(n.asa) >= 3;
 const fpsErfolg = (n) => intubiert(n) && n.fps !== false;
 function fpsStatistik(liste) {
   const intub = liste.filter(intubiert).length;
@@ -98,6 +100,8 @@ function neuerEntwurf(p) {
     ambulant: !!p.ambulant,
     verfahren,
     fps: verfahren.some(v => INTUBATION.includes(v)) ? p.fps !== false : null,
+    asa: p.asa ? Number(p.asa) : null,
+    notiz: p.notiz || '',
     original: p.original || p.eingriff || '',
     hinweise: p.hinweise || [],
   };
@@ -137,6 +141,10 @@ function karte(d, i) {
         onchange: (e) => { d.verfahren = e.target.checked ? [...d.verfahren, v] : d.verfahren.filter(x => x !== v); } }),
       VERF_LABEL[v])));
   const eingriff = el('input', { type: 'text', value: d.eingriff, oninput: (e) => { d.eingriff = e.target.value; } });
+  const asaSel = el('select', { onchange: (e) => { d.asa = e.target.value ? Number(e.target.value) : null; } },
+    el('option', { value: '' }, '– keine Angabe –'),
+    [1, 2, 3, 4, 5].map(k => el('option', { value: String(k), selected: d.asa === k || null }, `ASA ${k}`)));
+  const notiz = el('textarea', { rows: 2, placeholder: 'z. B. schwieriger Atemweg, Besonderheit', oninput: (e) => { d.notiz = e.target.value; } }, d.notiz || '');
   const fpsBox = intubiert(d) ? el('label', { class: 'chip' },
     el('input', { type: 'checkbox', checked: d.fps !== false || null, onchange: (e) => { d.fps = e.target.checked; } }),
     'First Pass Success') : null;
@@ -146,11 +154,13 @@ function karte(d, i) {
       d.unklar ? el('span', { class: 'badge' }, 'Eingriff unklar') : null),
     feld('Eingriff', eingriff),
     feld('Datum', datum),
+    feld('ASA-Klasse', asaSel),
     katBoxen, verfBoxen,
     el('div', { class: 'checks' },
       el('label', { class: 'chip' }, el('input', { type: 'checkbox', checked: d.kind || null, onchange: (e) => { d.kind = e.target.checked; } }), 'Kind (≤ 5 J.)'),
       el('label', { class: 'chip' }, el('input', { type: 'checkbox', checked: d.ambulant || null, onchange: (e) => { d.ambulant = e.target.checked; } }), 'Ambulant'),
       fpsBox),
+    feld('Anmerkung', notiz),
     d.hinweise.length ? el('p', { class: 'hinweis' }, d.hinweise.join(' · ')) : null,
     el('p', { class: 'original' }, `Diktat: „${d.original}“`),
     el('button', { class: 'gefahr klein', type: 'button', onclick: () => { entwuerfe.splice(i, 1); zeigeVorschau(); } }, 'Entfernen'));
@@ -174,6 +184,7 @@ $('#vorschau-speichern').addEventListener('click', () => {
     }
     return { id: d.id, datum: d.datum, eingriff: d.eingriff, kategorien: [...d.kategorien].sort(), kind: d.kind,
       ambulant: d.ambulant, verfahren: [...d.verfahren], fps: intubiert(d) ? d.fps !== false : null,
+      asa: d.asa, notiz: d.notiz.trim(),
       original: d.original, erfasst: new Date().toISOString() };
   });
   if (bearbeiteteId) narkosen = narkosen.filter(n => n.id !== bearbeiteteId);
@@ -206,7 +217,8 @@ function renderListe() {
         el('span', {}, n.eingriff || '(kein Eingriff)')),
       el('div', { class: 'klein' }, kategorienLabel(n.kategorien),
         n.verfahren.length ? ' · ' + n.verfahren.map(v => VERF_LABEL[v] || v).join(', ') : '',
-        flags ? ' · ' + flags : '', intubiert(n) && !fpsErfolg(n) ? ' · FPS negativ' : ''),
+        flags ? ' · ' + flags : '', intubiert(n) && !fpsErfolg(n) ? ' · FPS negativ' : '', n.asa ? ` · ASA ${n.asa}` : ''),
+      n.notiz ? el('div', { class: 'klein anmerkung' }, '„' + n.notiz + '“') : null,
       el('div', { class: 'aktionen' },
         el('button', { class: 'klein', type: 'button', onclick: () => bearbeiten(n.id) }, 'Bearbeiten'),
         el('button', { class: 'gefahr klein', type: 'button', onclick: () => loeschen(n.id) }, 'Löschen'))));
@@ -240,9 +252,10 @@ function monatsText(ym) {
   const zaehl = (fn) => liste.filter(fn).length;
   const intub = zaehl(n => ist(n, INTUBATION));
   if (intub) teile.push(`${intub}× Intubation`);
-  for (const v of ['LAMA', 'Analgosedierung', 'TIVA', 'Rotem']) { const c = zaehl(n => ist(n, [v])); if (c) teile.push(`${c}× ${VERF_LABEL[v]}`); }
+  for (const v of ['LAMA', 'Analgosedierung', 'TIVA', 'Rotem', 'Reanimation']) { const c = zaehl(n => ist(n, [v])); if (c) teile.push(`${c}× ${VERF_LABEL[v]}`); }
   for (const k of KATEGORIEN) { const c = zaehl(n => n.kategorien.includes(k)); if (c) teile.push(`${c}× ${KAT_LABEL[k]}`); }
   const kinder = zaehl(n => n.kind); if (kinder) teile.push(`${kinder}× Kind`);
+  const asa3 = zaehl(asaHoch); if (asa3) teile.push(`${asa3}× ASA ≥ 3`);
   return `${monatName(ym)}: ${liste.length} Narkosen. ${teile.join(', ')}. First Pass Success: ${fpsText(fpsStatistik(liste))}.`;
 }
 
@@ -298,14 +311,41 @@ function quartalsZahlen(q) {
   ];
 }
 
-// Zusätzliche Zeilen nur für die Anzeige (nicht Teil der Vorlage).
-function quartalsZusatz(q) {
-  const liste = gefiltert(n => quartal(n.datum) === q);
-  return [
-    ['First Pass Success', fpsText(fpsStatistik(liste))],
-    ['TIVA', liste.filter(n => ist(n, ['TIVA'])).length],
-    ['Rotem', liste.filter(n => ist(n, ['Rotem'])).length],
-  ];
+// Persönliche Monatsübersicht: alle Kennzahlen pro Monat (wird nicht exportiert).
+const UEBERSICHT_SPALTEN = [
+  ['Narkosen', n => n.length],
+  ['Intub.', n => n.filter(intubiert).length],
+  ['FPS %', n => { const s = fpsStatistik(n); return s.prozent === null ? '–' : s.prozent + ' %'; }],
+  ['ASA≥3', n => n.filter(asaHoch).length],
+  ['Kinder', n => n.filter(x => x.kind).length],
+  ['Ambul.', n => n.filter(x => x.ambulant).length],
+  ['TIVA', n => n.filter(x => ist(x, ['TIVA'])).length],
+  ['Rotem', n => n.filter(x => ist(x, ['Rotem'])).length],
+  ['Reanim.', n => n.filter(reanimation).length],
+  ['PDA/SPA', n => n.filter(x => ist(x, PDA_SPA)).length],
+  ['Regional', n => n.filter(x => ist(x, PERIPHER)).length],
+  ['Abdomen', n => n.filter(x => x.kategorien.includes('abdomen')).length],
+  ['Kopf/Hals', n => n.filter(x => x.kategorien.includes('kopf_hals')).length],
+  ['Thorax', n => n.filter(x => x.kategorien.includes('thorax')).length],
+  ['Intrakr.', n => n.filter(x => x.kategorien.includes('intrakraniell')).length],
+  ['Geburtsh.', n => n.filter(x => x.kategorien.includes('geburtshilfe')).length],
+  ['Gefäß', n => n.filter(x => x.kategorien.includes('gefaess')).length],
+  ['Sonst.', n => n.filter(x => x.kategorien.includes('sonstige')).length],
+];
+
+function monatsTabelle(jahr) {
+  const zeilen = [];
+  for (let m = 1; m <= 12; m++) {
+    const ym = `${jahr}-${String(m).padStart(2, '0')}`;
+    zeilen.push([MONATE[m - 1].slice(0, 3), gefiltert(n => monat(n.datum) === ym)]);
+  }
+  const jahresListe = gefiltert(n => n.datum.startsWith(jahr));
+  const kopf = el('tr', {}, el('th', {}, 'Monat'), UEBERSICHT_SPALTEN.map(([l]) => el('th', {}, l)));
+  const zeilenEl = zeilen.map(([name, liste]) => el('tr', {}, el('th', {}, name),
+    UEBERSICHT_SPALTEN.map(([, f]) => el('td', {}, String(f(liste))))));
+  const summe = el('tr', { class: 'summe' }, el('th', {}, 'Jahr'),
+    UEBERSICHT_SPALTEN.map(([, f]) => el('td', {}, String(f(jahresListe)))));
+  return el('table', { class: 'uebersicht' }, el('thead', {}, kopf), el('tbody', {}, zeilenEl, summe));
 }
 
 function quartalsOptionen() {
@@ -325,6 +365,7 @@ function renderAuswertung() {
   const jahrInput = $('#diagramm-jahr');
   if (!jahrInput.value) jahrInput.value = heute().slice(0, 4);
   $('#diagramm').innerHTML = diagramm(jahrInput.value);
+  $('#monats-tabelle').replaceChildren(monatsTabelle(jahrInput.value));
 
   const qSel = $('#quartal');
   const alt = qSel.value;
@@ -336,7 +377,7 @@ function renderAuswertung() {
 function renderQuartal() {
   const q = $('#quartal').value;
   const tbody = $('#quartal-tabelle');
-  tbody.replaceChildren(...[...quartalsZahlen(q), ...quartalsZusatz(q)].map(([l, v]) => el('tr', {}, el('th', {}, l), el('td', {}, String(v)))));
+  tbody.replaceChildren(...quartalsZahlen(q).map(([l, v]) => el('tr', {}, el('th', {}, l), el('td', {}, String(v)))));
   for (const id of ['name', 'weiterbildungszeit', 'imc', 'stand', 'abschnitt']) $('#q-' + id).value = meta[id] || '';
 }
 
@@ -345,7 +386,7 @@ function renderQuartal() {
 });
 $('#quartal').addEventListener('change', renderQuartal);
 $('#auswertung-monat').addEventListener('change', () => { $('#monatstext').textContent = monatsText($('#auswertung-monat').value); });
-$('#diagramm-jahr').addEventListener('change', () => { $('#diagramm').innerHTML = diagramm($('#diagramm-jahr').value); });
+$('#diagramm-jahr').addEventListener('change', () => { renderAuswertung(); });
 
 $('#quartal-kopieren').addEventListener('click', async () => {
   const q = $('#quartal').value;
@@ -408,7 +449,7 @@ $('#import-datei').addEventListener('change', async (e) => {
       narkosen.push({ id: r.id || neueId(), datum: r.datum, eingriff: r.eingriff || '', kategorien: [...kategorien].sort(),
         kind: !!r.kind, ambulant: !!r.ambulant, verfahren: r.verfahren || [], fps: intub ? r.fps !== false : null,
         original: r.original || r.eingriff || '',
-        erfasst: r.erfasst || new Date().toISOString(), asa: r.asa, geschlecht: r.geschlecht });
+        erfasst: r.erfasst || new Date().toISOString(), asa: Number(r.asa) || null, notiz: r.notiz || '', geschlecht: r.geschlecht });
       neu++;
     }
     sichern();

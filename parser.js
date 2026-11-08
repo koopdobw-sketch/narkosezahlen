@@ -5,6 +5,10 @@ import { klassifiziere, istKeineNarkose, normalisiere } from './katalog.js';
 // Trennwörter zwischen zwei Narkosen (Komma, Semikolon, Satzende, „dann“, „und“ …).
 const TRENNER = /\s*(?:;|,|\.(?=\s|$)|\bund danach\b|\bdanach\b|\bdann\b|\banschliessend\b|\bausserdem\b|\bnaechste(?:r|s)?\b|\bnoch (?:eine|einen|ein)\b|\bund\b)\s*/i;
 
+// ASA-Klasse, z. B. „ASA 3“ oder „ASA drei“.
+const ASA_RE = /\basa\s*(?:klasse\s*)?([1-5]|eins|zwei|drei|vier|fuenf)\b/i;
+const ASA_WORT = { eins: 1, zwei: 2, drei: 3, vier: 4, fuenf: 5 };
+
 // Mengen am Satzanfang: „zweimal Lap Chole“, „2x Appendektomie“, „drei Hernien“
 const MENGEN_WORT = { einmal: 1, eine: 1, ein: 1, zweimal: 2, zwei: 2, dreimal: 3, drei: 3,
   viermal: 4, vier: 4, fuenfmal: 5, fuenf: 5, sechsmal: 6, sechs: 6 };
@@ -12,6 +16,7 @@ const MENGE_RE = /^\s*(?:(\d+)\s?x\s(?=\D)|(\d+)\s*-?mal\s|(einmal|eine?|ein|zwe
 
 // Verfahren (Narkose- und Zugangsmethoden). Reihenfolge wichtig: spezifischere zuerst.
 const VERFAHREN = [
+  ['Reanimation', /\breanimation\w*|\breani\b/i],
   ['TIVA', /\btiva\b/i],
   ['Rotem', /\brotem\b/i],
   ['ZVK+Art', /\bzvk\b.*\barteri\w*|\barteri\w*.*\bzvk\b|\bzvk art\b/i],
@@ -70,6 +75,13 @@ export function parseDiktat(diktat, datum = null, benutzerZuordnung = {}) {
   const segmente = String(diktat || '').split(TRENNER).map(s => s.trim()).filter(Boolean);
 
   for (const seg of segmente) {
+    // „Anmerkung …“ gehört zur vorherigen Narkose und wird nicht als Eingriff gewertet.
+    const anm = seg.match(/^anmerkung\s*[:\-]?\s*(.*)$/i);
+    if (anm) {
+      const ziel = gruppen[gruppen.length - 1];
+      if (ziel) ziel.notiz = [ziel.notiz, anm[1]].filter(Boolean).join(' ');
+      continue;
+    }
     if (istKeineNarkose(seg)) {
       hinweise.push(`„${seg}“ übersprungen (keine Narkose)`);
       continue;
@@ -77,7 +89,9 @@ export function parseDiktat(diktat, datum = null, benutzerZuordnung = {}) {
     const { text, menge } = zerlegeSegment(seg);
     const verfahren = [];
     const fpsNegativ = FPS_NEG.test(text);
-    let rest = text.replace(new RegExp(FPS_NEG.source, 'gi'), ' ').replace(/\b(fps|first pass success|first pass)\b/gi, ' ');
+    const asaMatch = text.match(ASA_RE);
+    const asa = asaMatch ? (ASA_WORT[asaMatch[1].toLowerCase()] || Number(asaMatch[1])) : null;
+    let rest = text.replace(ASA_RE, ' ').replace(new RegExp(FPS_NEG.source, 'gi'), ' ').replace(/\b(fps|first pass success|first pass)\b/gi, ' ');
     for (const [name, re] of VERFAHREN) {
       if (re.test(rest)) {
         verfahren.push({ name });
@@ -96,10 +110,11 @@ export function parseDiktat(diktat, datum = null, benutzerZuordnung = {}) {
       letzte.kind = letzte.kind || kind;
       letzte.ambulant = letzte.ambulant || ambulant;
       letzte.fpsNegativ = letzte.fpsNegativ || fpsNegativ;
+      letzte.asa = letzte.asa ?? asa;
       letzte.segmente.push(seg);
       continue;
     }
-    gruppen.push({ eingriff: eingriffText, menge, verfahren, kind, ambulant, fpsNegativ, segmente: [seg] });
+    gruppen.push({ eingriff: eingriffText, menge, verfahren, kind, ambulant, fpsNegativ, asa, notiz: '', segmente: [seg] });
   }
 
   const narkosen = [];
@@ -116,6 +131,8 @@ export function parseDiktat(diktat, datum = null, benutzerZuordnung = {}) {
         kategorien: k.kategorien,
         unsicher: k.unsicher && !!g.eingriff,
         kind: g.kind,
+        asa: g.asa,
+        notiz: g.notiz,
         ambulant: g.ambulant,
         verfahren: g.verfahren.map(v => ({ ...v })),
         fps: g.verfahren.some(v => INTUBATIONS_VERFAHREN.includes(v.name)) ? !g.fpsNegativ : null,

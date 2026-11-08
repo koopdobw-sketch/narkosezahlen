@@ -9,7 +9,7 @@ const KAT_LABEL = {
 };
 const VERF_LABEL = {
   vITN: 'vITN', kITN: 'kITN', nITN: 'nITN', LAMA: 'LAMA', Fieberoptik: 'Fieberoptik', Analgosedierung: 'Analgosedierung',
-  Art: 'Art', ZVK: 'ZVK', 'ZVK+Art': 'ZVK + Art', PDK: 'PDK', SPA: 'SPA', ISB: 'ISB', Supraklavikulaer: 'Supraklavikulär',
+  Art: 'Arterie', ZVK: 'ZVK', PDK: 'PDK', SPA: 'SPA', ISB: 'ISB', Supraklavikulaer: 'Supraklavikulär',
   Infraklavikulaer: 'Infraklavikulär', Axillaer: 'Axillär', Femoral: 'Femoral', Ischiadikus: 'Ischiadikus', 'Anderer Block': 'Anderer Block',
   TIVA: 'TIVA', Rotem: 'Rotem', Reanimation: 'Reanimation',
 };
@@ -26,7 +26,9 @@ function speichere(key, wert) {
   try { localStorage.setItem(key, JSON.stringify(wert)); return true; }
   catch (e) { alert('Speichern fehlgeschlagen (Speicher voll oder gesperrt). Bitte Sicherung exportieren.'); return false; }
 }
-let narkosen = lade(KEY, []);
+// Altes Verfahren „ZVK+Art“ wird in zwei Verfahren aufgeteilt.
+const migriere = (n) => ({ ...n, verfahren: [...new Set((n.verfahren || []).flatMap(v => v === 'ZVK+Art' ? ['ZVK', 'Art'] : [v]))] });
+let narkosen = lade(KEY, []).map(migriere);
 let zuordnung = lade(ZKEY, {});       // normalisierter Eingriffstext -> Kategorien
 let meta = lade(MKEY, {});            // Felder für die Quartalsmeldung
 const sichern = () => speichere(KEY, narkosen);
@@ -252,7 +254,7 @@ function monatsText(ym) {
   const zaehl = (fn) => liste.filter(fn).length;
   const intub = zaehl(n => ist(n, INTUBATION));
   if (intub) teile.push(`${intub}× Intubation`);
-  for (const v of ['LAMA', 'Analgosedierung', 'TIVA', 'Rotem', 'Reanimation']) { const c = zaehl(n => ist(n, [v])); if (c) teile.push(`${c}× ${VERF_LABEL[v]}`); }
+  for (const v of ['LAMA', 'Analgosedierung', 'TIVA', 'Rotem', 'Reanimation', 'ZVK', 'Art']) { const c = zaehl(n => ist(n, [v])); if (c) teile.push(`${c}× ${VERF_LABEL[v]}`); }
   for (const k of KATEGORIEN) { const c = zaehl(n => n.kategorien.includes(k)); if (c) teile.push(`${c}× ${KAT_LABEL[k]}`); }
   const kinder = zaehl(n => n.kind); if (kinder) teile.push(`${kinder}× Kind`);
   const asa3 = zaehl(asaHoch); if (asa3) teile.push(`${asa3}× ASA ≥ 3`);
@@ -321,6 +323,8 @@ const UEBERSICHT_SPALTEN = [
   ['Ambul.', n => n.filter(x => x.ambulant).length],
   ['TIVA', n => n.filter(x => ist(x, ['TIVA'])).length],
   ['Rotem', n => n.filter(x => ist(x, ['Rotem'])).length],
+  ['ZVK', n => n.filter(x => ist(x, ['ZVK'])).length],
+  ['Arterie', n => n.filter(x => ist(x, ['Art'])).length],
   ['Reanim.', n => n.filter(reanimation).length],
   ['PDA/SPA', n => n.filter(x => ist(x, PDA_SPA)).length],
   ['Regional', n => n.filter(x => ist(x, PERIPHER)).length],

@@ -336,6 +336,55 @@ const UEBERSICHT_SPALTEN = [
   ['Sonst.', n => n.filter(x => x.kategorien.includes('sonstige')).length],
 ];
 
+// Balkendiagramm: x = Monate, y = gewählte Zahl (z. B. Arterien pro Monat).
+function balkenGrafik(werte, titel) {
+  const W = 360, H = 220, links = 36, unten = 26, oben = 18;
+  const bekannt = werte.filter(w => w.wert !== null).map(w => w.wert);
+  const hoechst = Math.max(0, ...bekannt);
+  const schritt = Math.max(1, Math.ceil(hoechst / 4));
+  const yMax = Math.max(schritt * 4, 1);
+  const plotH = H - unten - oben, plotB = W - links - 8;
+  const x = (i) => links + i * (plotB / 12);
+  const bw = plotB / 12 - 6;
+  const y = (v) => oben + plotH - (v / yMax) * plotH;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${titel}" class="diagramm">`;
+  for (let t = 0; t <= 4; t++) {
+    const v = schritt * t;
+    svg += `<line x1="${links}" x2="${W - 8}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" class="raster"/>`;
+    svg += `<text x="${links - 6}" y="${(y(v) + 4).toFixed(1)}" text-anchor="end" class="achse">${v}</text>`;
+  }
+  werte.forEach((w, i) => {
+    const mitte = x(i) + bw / 2;
+    if (w.wert !== null && w.wert > 0) {
+      svg += `<rect x="${x(i).toFixed(1)}" y="${y(w.wert).toFixed(1)}" width="${bw.toFixed(1)}" height="${(y(0) - y(w.wert)).toFixed(1)}" fill="var(--c1)"><title>${w.label}: ${w.wert}</title></rect>`;
+      svg += `<text x="${mitte.toFixed(1)}" y="${(y(w.wert) - 3).toFixed(1)}" text-anchor="middle" class="wert">${w.wert}</text>`;
+    }
+    svg += `<text x="${mitte.toFixed(1)}" y="${H - 8}" text-anchor="middle" class="achse">${MONATE[i].slice(0, 3)}</text>`;
+  });
+  return svg + '</svg>';
+}
+
+function grafikWerte(jahr, spalte) {
+  const [label, f] = spalte;
+  return MONATE.map((_, i) => {
+    const ym = `${jahr}-${String(i + 1).padStart(2, '0')}`;
+    const v = f(gefiltert(n => monat(n.datum) === ym));
+    const zahl = typeof v === 'number' ? v : parseFloat(String(v).replace(',', '.'));
+    return { label: `${MONATE[i]} ${jahr}`, wert: Number.isFinite(zahl) ? zahl : null };
+  });
+}
+
+function renderGrafik(jahr) {
+  const auswahl = $('#grafik-metrik');
+  if (!auswahl.options.length) {
+    auswahl.replaceChildren(...UEBERSICHT_SPALTEN.map(([l], i) => el('option', { value: String(i) }, l)));
+    auswahl.value = '0';
+  }
+  const spalte = UEBERSICHT_SPALTEN[Number(auswahl.value)];
+  $('#grafik').innerHTML = balkenGrafik(grafikWerte(jahr, spalte), `${spalte[0]} pro Monat ${jahr}`);
+}
+$('#grafik-metrik').addEventListener('change', () => renderGrafik($('#diagramm-jahr').value));
+
 function monatsTabelle(jahr) {
   const zeilen = [];
   for (let m = 1; m <= 12; m++) {
@@ -369,6 +418,7 @@ function renderAuswertung() {
   if (!jahrInput.value) jahrInput.value = heute().slice(0, 4);
   $('#diagramm').innerHTML = diagramm(jahrInput.value);
   $('#monats-tabelle').replaceChildren(monatsTabelle(jahrInput.value));
+  renderGrafik(jahrInput.value);
 
   const qSel = $('#quartal');
   const alt = qSel.value;

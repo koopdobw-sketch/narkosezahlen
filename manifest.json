@@ -1,0 +1,10 @@
+{
+  "name": "Narkose-Tool",
+  "short_name": "Narkose",
+  "lang": "de",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f6f8",
+  "theme_color": "#2b6cb0"
+}

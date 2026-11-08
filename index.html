@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Narkose">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#2b6cb0">
+<title>Narkose-Tool</title>
+<link rel="manifest" href="manifest.json">
+<style>
+  :root {
+    --bg: #f5f6f8; --fg: #1c2330; --karte: #ffffff; --rand: #d6dbe3; --akzent: #2b6cb0;
+    --warn-bg: #fff4d6; --warn-fg: #7a5200; --ok-bg: #e2f5e8; --ok-fg: #1d6b35; --gefahr: #b42318;
+    --c1: #2b6cb0; --c2: #d69e2e; --c3: #319795; --c4: #805ad5; --c5: #a0aec0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12161d; --fg: #e8ecf2; --karte: #1d232d; --rand: #323b4a; --akzent: #63a4ea;
+      --warn-bg: #3d2f10; --warn-fg: #ffd98a; --ok-bg: #123322; --ok-fg: #9be3b5; --gefahr: #ff8a80;
+      --c1: #63a4ea; --c2: #f6c25b; --c3: #4fd1c5; --c4: #b794f4; --c5: #718096;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12161d; --fg: #e8ecf2; --karte: #1d232d; --rand: #323b4a; --akzent: #63a4ea;
+    --warn-bg: #3d2f10; --warn-fg: #ffd98a; --ok-bg: #123322; --ok-fg: #9be3b5; --gefahr: #ff8a80;
+    --c1: #63a4ea; --c2: #f6c25b; --c3: #4fd1c5; --c4: #b794f4; --c5: #718096;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; -webkit-text-size-adjust: 100%; }
+  body { padding-bottom: env(safe-area-inset-bottom); }
+  header { position: sticky; top: 0; z-index: 2; background: var(--karte); border-bottom: 1px solid var(--rand);
+    padding: 12px 16px 0; padding-top: calc(12px + env(safe-area-inset-top)); }
+  header h1 { font-size: 20px; margin: 0 0 8px; }
+  nav { display: flex; gap: 4px; overflow-x: auto; }
+  nav button { flex: 1 0 auto; border: 0; background: none; color: var(--fg); padding: 10px 8px; font: inherit;
+    border-bottom: 3px solid transparent; white-space: nowrap; }
+  nav button[aria-current="page"] { color: var(--akzent); border-bottom-color: var(--akzent); font-weight: 600; }
+  main { padding: 16px; max-width: 720px; margin: 0 auto; }
+  section[hidden], .karte[hidden], #vorschau[hidden] { display: none !important; }
+  h2 { font-size: 18px; margin: 0 0 12px; }
+  h3 { font-size: 15px; margin: 20px 0 8px; color: var(--akzent); }
+  label, .feld { display: block; }
+  .feld { margin: 10px 0; }
+  .feld > span { display: block; font-size: 13px; opacity: .75; margin-bottom: 4px; }
+  input[type=text], input[type=date], input[type=month], input[type=number], select, textarea {
+    width: 100%; font: inherit; color: var(--fg); background: var(--karte); border: 1px solid var(--rand);
+    border-radius: 8px; padding: 10px 12px; }
+  textarea { min-height: 120px; resize: vertical; }
+  button { font: inherit; border: 0; border-radius: 10px; padding: 12px 16px; background: var(--akzent); color: #fff; cursor: pointer; }
+  button.sekundaer { background: transparent; color: var(--akzent); border: 1px solid var(--akzent); }
+  button.gefahr { background: transparent; color: var(--gefahr); border: 1px solid var(--gefahr); }
+  button.klein { padding: 6px 10px; font-size: 14px; }
+  .reihe { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .reihe > * { flex: 1 1 auto; }
+  .karte { background: var(--karte); border: 1px solid var(--rand); border-radius: 12px; padding: 14px; margin: 12px 0; }
+  .karte.unklar { border-color: #d69e2e; box-shadow: inset 4px 0 0 #d69e2e; }
+  .karte header { position: static; background: none; border: 0; padding: 0; display: flex; justify-content: space-between; align-items: center; }
+  .badge { font-size: 12px; background: var(--warn-bg); color: var(--warn-fg); padding: 2px 8px; border-radius: 999px; }
+  fieldset { border: 0; padding: 0; margin: 12px 0 0; }
+  legend { font-size: 13px; opacity: .75; margin-bottom: 6px; padding: 0; }
+  .kats { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--rand); border-radius: 999px; padding: 6px 10px; font-size: 14px; cursor: pointer; }
+  .chip input { width: 16px; height: 16px; margin: 0; accent-color: var(--akzent); }
+  .checks { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .hinweis { color: var(--warn-fg); font-size: 14px; margin: 10px 0 0; }
+  .original { font-size: 13px; opacity: .7; margin: 8px 0; word-break: break-word; }
+  .klein { font-size: 14px; }
+  .aktionen { display: flex; gap: 8px; margin-top: 8px; }
+  .status { margin: 12px 0; padding: 10px 12px; border-radius: 8px; }
+  .status:empty { display: none; }
+  .status.ok { background: var(--ok-bg); color: var(--ok-fg); }
+  .status.warn { background: var(--warn-bg); color: var(--warn-fg); }
+  .status.info { background: var(--karte); }
+  .zeile-liste .klein { margin: 0; }
+  .muted, .klein { opacity: .8; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+  th, td { text-align: left; padding: 8px 4px; border-bottom: 1px solid var(--rand); }
+  td { text-align: right; font-variant-numeric: tabular-nums; }
+  .diagramm { width: 100%; height: auto; }
+  .diagramm .achse { font-size: 10px; fill: var(--fg); opacity: .7; }
+  .diagramm .wert { font-size: 10px; fill: var(--fg); }
+  .legende { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; margin-top: 6px; }
+  .leg i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 4px; vertical-align: middle; }
+  .text { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Narkose-Tool</h1>
+  <nav>
+    <button data-ziel="erfassen" aria-current="page">Erfassen</button>
+    <button data-ziel="liste" aria-current="false">Liste</button>
+    <button data-ziel="auswertung" aria-current="false">Auswertung</button>
+    <button data-ziel="sicherung" aria-current="false">Sicherung</button>
+  </nav>
+</header>
+
+<main>
+  <section id="erfassen">
+    <h2>Narkosen diktieren</h2>
+    <p class="muted">Mikrofon-Taste der iPhone-Tastatur antippen und Narkosen diktieren, z. B. „zweimal Lap Chole, vITN, Kind 4 Jahre, dann Appendektomie, LAMA“.</p>
+    <label class="feld"><span>Datum</span><input type="date" id="datum"></label>
+    <label class="feld"><span>Diktat</span><textarea id="diktat" placeholder="Hier diktieren oder tippen…"></textarea></label>
+    <div class="reihe"><button id="vorschau-btn" type="button">Vorschau</button></div>
+    <div id="status" class="status" role="status"></div>
+
+    <section id="vorschau" hidden>
+      <h2 id="vorschau-titel">Vorschau</h2>
+      <p class="muted">Nichts wird gespeichert, bevor du „Speichern“ tippst. Gelbe Karten brauchen eine Zuordnung.</p>
+      <div id="vorschau-liste"></div>
+      <div class="reihe">
+        <button id="vorschau-speichern" type="button">Speichern</button>
+        <button id="vorschau-abbrechen" type="button" class="sekundaer">Abbrechen</button>
+      </div>
+    </section>
+  </section>
+
+  <section id="liste" hidden>
+    <h2>Gespeicherte Narkosen</h2>
+    <p id="liste-anzahl" class="muted"></p>
+    <div id="liste-inhalt"></div>
+  </section>
+
+  <section id="auswertung" hidden>
+    <h2>Monatsübersicht</h2>
+    <label class="feld"><span>Monat</span><input type="month" id="auswertung-monat"></label>
+    <p id="monatstext" class="text"></p>
+
+    <h3>Verteilung über die Monate</h3>
+    <label class="feld"><span>Jahr</span><input type="number" id="diagramm-jahr" min="2020" max="2100"></label>
+    <div id="diagramm"></div>
+
+    <h2>Quartalsmeldung</h2>
+    <label class="feld"><span>Quartal</span><select id="quartal"></select></label>
+    <table><tbody id="quartal-tabelle"></tbody></table>
+
+    <h3>Von Hand ausfüllen</h3>
+    <label class="feld"><span>Name, Vorname</span><input type="text" id="q-name" autocomplete="off"></label>
+    <label class="feld"><span>Weiterbildungszeit in vollen Monaten</span><input type="number" id="q-weiterbildungszeit" min="0"></label>
+    <label class="feld"><span>davon auf IMC/ITS</span><input type="number" id="q-imc" min="0"></label>
+    <label class="feld"><span>Stand vom</span><input type="date" id="q-stand"></label>
+    <label class="feld"><span>WB-Abschnitt</span><input type="text" id="q-abschnitt" autocomplete="off"></label>
+    <div class="reihe"><button id="quartal-kopieren" type="button">Quartalszeile kopieren</button></div>
+    <div class="reihe"><button id="quartal-xlsx" class="sekundaer" type="button">Quartalsvorlage als Excel (.xlsx)</button></div>
+  </section>
+
+  <section id="sicherung" hidden>
+    <h2>Sicherung</h2>
+    <p class="muted">Die Daten liegen nur auf diesem Gerät. iOS kann Daten von Web-Apps löschen. Regelmäßig exportieren.</p>
+    <p id="sicherung-anzahl"></p>
+    <div class="reihe"><button id="export-btn" type="button">Daten exportieren (JSON)</button></div>
+    <div class="reihe"><button id="xlsx-btn" type="button">Excel-Datei „Narkosezahlen“ (.xlsx)</button></div>
+    <label class="feld" style="margin-top:20px"><span>Datei importieren (JSON). Einträge mit gleicher ID werden aktualisiert, neue ergänzt.</span>
+      <input type="file" id="import-datei" accept="application/json,.json"></label>
+  </section>
+</main>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
